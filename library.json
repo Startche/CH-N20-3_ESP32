@@ -1,0 +1,28 @@
+{
+    "name": "CH-N20-3",
+    "version": "0.0.1",
+    "description": "Motor speed and position control using the CH-N20-3 board and an ESP32",
+    "keywords": "motor, encoder, control",
+    "repository":
+    {
+      "type": "git",
+      "url": "https://github.com/Startche/CH-N20-3_ESP32"
+    },
+    "authors":
+    [
+      {
+        "name": "Lucas Klement Reinehr",
+        "email": "lucasklementr@gmail.com"
+      }
+    ],
+    "frameworks": "Arduino",
+    "platforms": "espressif32",
+    "headers": "CHN203_ESP32.h",
+    "examples": [
+        {
+            "name": "TB6612FNG_MotorTestRun",
+            "base": "examples/TB6612FNG_MotorTestRun",
+            "files": ["TB6612FNG_MotorTestRun.cpp"]
+        }
+    ]
+}
