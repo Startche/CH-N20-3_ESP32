@@ -1,36 +1,44 @@
 #pragma once
 
 #include <ctype.h>
+#include <mutex>
+#include <ESP32Encoder.h>
 
-class GenericMotor {
-    public:
-        virtual void drive(float speed);
-        virtual void brake();
+class GenericMotor
+{
+public:
+    virtual void drive(float speed);
+    virtual void brake();
 };
 
-class CHN203_ESP32 {
-    public:
-        CHN203_ESP32(GenericMotor motor, uint8_t c1, uint8_t c2);
-        ~CHN203_ESP32();
+class CHN203_ESP32
+{
+public:
+    CHN203_ESP32(GenericMotor motor, uint8_t c1, uint8_t c2);
+    ~CHN203_ESP32();
 
-        float getPosition();
-        float getSetPosition();
-        void setPosition(float newPosition);
-        void rotate(float angle);
+    void drive(float speed);
+    void brake();
 
-        float getSpeed();
-        float getSetSpeed();
-        void setSpeed(float newSpeed);
-    
-    protected:
-        GenericMotor m_motor;
-        uint8_t m_c1;
-        uint8_t m_c2;
+    void setSpeed(float speed);
+    void rotate(float angle);
 
-        float m_position{ 0 };
-        float m_setPosition{ 0 };
-        float m_speed{ 0 };
-        float m_setSpeed{ 0 };
+protected:
+    std::mutex m_lock;
 
-        void normalizePosition();
+    GenericMotor m_motor;
+    ESP32Encoder m_encoder;
+
+    enum ControlTaskType
+    {
+        NONE,
+        POSITION,
+        SPEED,
+    };
+    CHN203_ESP32::ControlTaskType m_controlTaskType;
+
+    float m_setPos;
+    float m_setSpeed;
+
+    static void motorControl(void *params);
 };
