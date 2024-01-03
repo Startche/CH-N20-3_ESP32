@@ -27,9 +27,17 @@ public:
     void drive(float speed);
     void brake();
 
-    // Change speed or position setpoint.
+    // Rotate:
+    // By a fraction of a turn:
+    void rotate(float turn);
+    // By some radians:
+    void rotateRad(float angle);
+    // By some degrees:
+    void rotateDeg(float angle);
+
+    // Set speed:
+    // In turns per second [Hz]:
     void setSpeed(float speed);
-    void rotate(float angle);
 
     // Return total rotation from initial orientation:
     // In fractions of a turn:
@@ -40,7 +48,7 @@ public:
     float getPositionDeg();
 
     // Return speed:
-    // In fractions of a turn per second [Hz]:
+    // In turns per second [Hz]:
     float getSpeed();
 
 protected:
@@ -63,8 +71,11 @@ protected:
     };
     CHN203::ControlTaskType m_currentTask = NONE;
 
+    // Task handle.
+    TaskHandle_t m_xHandle = NULL;
+
     // Setpoints for position and speed.
-    float m_setPosition;
+    long m_setCounts;
     float m_setSpeed;
 
     // Current speed.
