@@ -88,6 +88,12 @@ float PID::compute(float input, float setpoint)
     return output;
 }
 
+void PID::reset()
+{
+    m_lastInput = 0;
+    m_integral = 0;
+}
+
 float PID::clamp(float v)
 {
     if (m_lo == m_hi)
@@ -104,7 +110,8 @@ float PID::clamp(float v)
     return v;
 }
 
-#ifdef INC_TASK_H
-// FreeRTOS tasks header included, define automatic PID.
+#ifdef AUTO_PID
+
+// TODO: implement AutoPID
 
 #endif

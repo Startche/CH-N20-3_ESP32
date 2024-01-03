@@ -42,6 +42,9 @@ public:
     // Assumes constant time elapsed between computations.
     float compute(float input, float setpoint);
 
+    // Resets internal variables.
+    void reset();
+
 private:
     // Parameters given by user.
     float m_kiOrg;
@@ -73,12 +76,17 @@ private:
 };
 
 #ifdef INC_TASK_H
-// FreeRTOS tasks header included, define automatic PID.
-#include <mutex>
+/*
+ * If FreeRTOS tasks header included, define AutoPID.
+ * AutoPID automatically reads inputs and setpoints and
+ * writes the output at the correct intervals.
+ */
+#define AUTO_PID
+
+// TODO: implement AutoPID
 
 class AutoPID : PID
 {
-public:
 };
 
 #endif
