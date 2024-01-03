@@ -49,21 +49,33 @@ CHN203 board2(&motor2, BC1, BC2, RATIO);
 void setup()
 {
     Serial.begin(115200);
+
+    board1.tunePositionPID(1, 1, 0);
+    board2.tunePositionPID(1, 1, 0);
 }
 
 void loop()
 {
-    static const float OMEGA = (0.25) * (2 * M_PI);
+    static bool turnBoard1 = true;
 
-    float speed = sin(OMEGA * millis() / 1000);
+    for (int i = 0; i < 50; i++)
+    {
+        Serial.print(board1.getPosition());
+        Serial.print('\t');
+        Serial.print(board2.getPosition());
+        Serial.print('\n');
+        delay(10);
+    }
 
-    board1.drive(speed);
-    board2.drive(-speed);
+    if (turnBoard1)
+    {
 
-    Serial.print(board1.getPosition());
-    Serial.print('\t');
-    Serial.print(board2.getPosition());
-    Serial.print('\n');
+        board1.rotate(0.25);
+    }
+    else
+    {
 
-    delay(10);
+        board2.rotate(-0.25);
+    }
+    turnBoard1 = !turnBoard1;
 }

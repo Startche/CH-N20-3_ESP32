@@ -49,20 +49,19 @@ CHN203 board2(&motor2, BC1, BC2, RATIO);
 void setup()
 {
     Serial.begin(115200);
+
+    board1.tuneSpeedPID(4, 3, 0);
+    board2.tuneSpeedPID(4, 3, 0);
+
+    board1.setSpeed(2);
+    board2.setSpeed(-2);
 }
 
 void loop()
 {
-    static const float OMEGA = (0.25) * (2 * M_PI);
-
-    float speed = sin(OMEGA * millis() / 1000);
-
-    board1.drive(speed);
-    board2.drive(-speed);
-
-    Serial.print(board1.getPosition());
+    Serial.print(board1.getSpeed());
     Serial.print('\t');
-    Serial.print(board2.getPosition());
+    Serial.print(board2.getSpeed());
     Serial.print('\n');
 
     delay(10);

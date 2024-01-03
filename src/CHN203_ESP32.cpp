@@ -1,30 +1,21 @@
 #include <Arduino.h>
 #include <CHN203_ESP32.h>
-#include <PID.h>
 
 // Number of encoder counts per turn
-#define ENC_COUNT 28
-
-float clamp(float v, float lo, float hi)
-{
-    // Clamp value between minimum and maximum.
-    if (v < lo)
-        return lo;
-    if (v > hi)
-        return hi;
-    return v;
-}
-float clamp_speed(float s) { return clamp(s, -1, 1); }
+const int ENCODER_COUNTS = 28;
 
 CHN203::CHN203(GenericDriver *motor, uint8_t c1, uint8_t c2, float ratio)
 {
     m_motor = motor;
+    m_ratio = ratio;
 
     // Initialize encoder.
     m_encoder.attachFullQuad(c1, c2);
     m_encoder.clearCount();
 
-    m_ratio = ratio;
+    // Initialize PID controllers.
+    m_pidPosition.setSampleTime(m_interval / 1000.0);
+    m_pidSpeed.setSampleTime(m_interval / 1000.0);
 
     // Create control task.
     xTaskCreate(CHN203::motorControl, // Control function.
@@ -39,31 +30,79 @@ CHN203::CHN203(GenericDriver *motor, uint8_t c1, uint8_t c2, float ratio)
     configASSERT(m_xHandle);
 }
 
+/*
+ * Raw motor functions.
+ */
+
 void CHN203::drive(float speed)
 {
     lock();
 
-    speed = clamp_speed(speed);
     m_currentTask = NONE;
-    m_motor->drive(speed);
 
     unlock();
+
+    // Clamp speed and apply it.
+    if (speed < GenericDriver::MIN_SPEED)
+    {
+        speed = GenericDriver::MIN_SPEED;
+    }
+    else if (speed > GenericDriver::MAX_SPEED)
+    {
+        speed = GenericDriver::MAX_SPEED;
+    }
+    m_motor->drive(speed);
 }
 void CHN203::brake()
 {
     lock();
 
     m_currentTask = NONE;
+
+    unlock();
+
     m_motor->brake();
+}
+
+/*
+ * PID controller tuning.
+ */
+
+void CHN203::tunePositionPID(float kp, float ki, float kd)
+{
+    kp = countsToRotation(kp);
+    ki = countsToRotation(ki);
+    kd = countsToRotation(kd);
+
+    lock();
+
+    m_pidPosition.setTuning(kp, ki, kd);
 
     unlock();
 }
 
-void CHN203::rotate(float turn)
+void CHN203::tuneSpeedPID(float kp, float ki, float kd)
+{
+    // TODO: adjust to take window into account.
+    kp = countsToRotation(kp);
+    ki = countsToRotation(ki);
+    kd = countsToRotation(kd);
 
+    lock();
+
+    m_pidSpeed.setTuning(kp, ki, kd);
+
+    unlock();
+}
+
+/*
+ * Rotation control functions.
+ */
+
+void CHN203::rotate(float turn)
 {
     // Convert turn into encoder counts.
-    long counts = turn * ENC_COUNT * m_ratio;
+    long counts = rotationToCounts(turn);
 
     lock();
 
@@ -86,35 +125,41 @@ void CHN203::rotate(float turn)
 
     unlock();
 }
-
 void CHN203::rotateRad(float angle) { rotate(angle / M_2_PI); }
-
 void CHN203::rotateDeg(float angle) { rotate(angle / 360.0); }
 
 float CHN203::getPosition()
 {
     lock();
 
-    float turn = (float)m_encoder.getCount() / (ENC_COUNT * m_ratio);
+    float turn = countsToRotation(m_encoder.getCount());
 
     unlock();
 
     return turn;
 }
-
 float CHN203::getPositionDeg() { return 360.0 * getPosition(); }
-
 float CHN203::getPositionRad() { return M_2_PI * getPosition(); }
+
+/*
+ * Speed control functions.
+ */
 
 void CHN203::setSpeed(float speed)
 {
+    // Convert speed to amount of counts per second.
+    long countsPerSecond = rotationToCounts(speed);
+
     lock();
 
     m_currentTask = SPEED;
-    m_setSpeed = speed;
+    m_setCountsPerSecond = countsPerSecond;
 
     unlock();
 }
+void CHN203::setSpeedRad(float speed) { setSpeed(speed / M_2_PI); }
+void CHN203::setSpeedDeg(float speed) { setSpeed(speed / 360.0); }
+void CHN203::setSpeedRPM(float speed) { setSpeed(speed / 60.0); }
 
 float CHN203::getSpeed()
 {
@@ -125,6 +170,23 @@ float CHN203::getSpeed()
     unlock();
 
     return speed;
+}
+float CHN203::getSpeedRad() { return getSpeed() * M_2_PI; }
+float CHN203::getSpeedDeg() { return getSpeed() * 360.0; }
+float CHN203::getSpeedRPM() { return getSpeed() * 60.0; }
+
+/*
+ * Helper functions.
+ */
+
+float CHN203::countsToRotation(float counts)
+{
+    return counts / (ENCODER_COUNTS * m_ratio);
+}
+
+float CHN203::rotationToCounts(float rotation)
+{
+    return rotation * ENCODER_COUNTS * m_ratio;
 }
 
 void CHN203::lock()
@@ -137,58 +199,95 @@ void CHN203::unlock()
     m_lock.unlock();
 }
 
+/*
+ * Main controller function.
+ */
+
 void CHN203::motorControl(void *board)
 {
+    // Get board pointer.
+    CHN203 *volatile p = static_cast<struct CHN203 *volatile>(board);
+
+    // Last task being executed.
     CHN203::ControlTaskType lastTask = NONE;
 
-    // Controller parameters.
-    const long xIntervalMs = 20;
-
-    // Position.
-
-    // Speed.
+    // Speed calculation.
+    const int WINDOW = 10;
+    int windowIndex = 0;
+    long countsHistory[WINDOW] = {0};
 
     // Execution frequency parameters. See:
     // <https://www.freertos.org/xtaskdelayuntiltask-control.html>
-    TickType_t xLastWakeTime;
-    const TickType_t xFrequency = pdMS_TO_TICKS(xIntervalMs);
-    BaseType_t xWasDelayed;
+    const TickType_t xFrequency = pdMS_TO_TICKS(p->m_intervalMs);
+    TickType_t xLastWakeTime = xTaskGetTickCount();
 
-    xLastWakeTime = xTaskGetTickCount();
     while (1)
     {
         // Wait for the next cycle.
-        xWasDelayed = xTaskDelayUntil(&xLastWakeTime, xFrequency);
+        auto xWasDelayed = xTaskDelayUntil(&xLastWakeTime, xFrequency);
         if (xWasDelayed)
         {
             xLastWakeTime = xTaskGetTickCount();
         }
 
-        // Get board pointer.
-        CHN203 *volatile p = static_cast<struct CHN203 *>(board);
-
         // Lock board.
         p->lock();
 
+        // Get current task.
         CHN203::ControlTaskType task = p->m_currentTask;
 
         if (lastTask != task)
         {
-            // Reset control parameters.
-            // TODO: cleanup.
+            // Reset control parameters after task change.
             lastTask = task;
+            p->m_pidPosition.reset();
+            p->m_pidSpeed.reset();
         }
 
-        if (p->m_currentTask == POSITION)
+        // Get current counts and counts change during window.
+        long counts = p->m_encoder.getCount();
+        long dt = counts - countsHistory[windowIndex];
+
+        if (task == POSITION)
         {
-            // TODO: control position.
+            // Position control.
+            long setCounts = p->m_setCounts;
+            float output = p->m_pidPosition.compute(counts, setCounts);
+
+            const long MAX_ERROR = 1;
+            long error = setCounts - counts;
+            if (-MAX_ERROR <= error && error <= MAX_ERROR)
+            {
+                // If error is small enough, brake motor.
+                p->m_motor->brake();
+            }
+            else
+            {
+                // If error is too great, keep driving.
+                p->m_motor->drive(output);
+            }
         }
-        else if (p->m_currentTask == SPEED)
+        else if (task == SPEED)
         {
-            // TODO: control speed.
+            // Speed control.
+            float setpoint = p->m_setCountsPerSecond * WINDOW * p->m_interval;
+            float output = p->m_pidSpeed.compute(dt, setpoint);
+            p->m_motor->drive(output);
         }
+
+        // Calculate speed.
+        float countsPerSecond = dt / (WINDOW * p->m_interval);
+        p->m_speed = p->countsToRotation(countsPerSecond);
 
         // Unlock board.
         p->unlock();
+
+        // Update counts history.
+        countsHistory[windowIndex] = counts;
+        windowIndex++;
+        if (windowIndex >= WINDOW)
+        {
+            windowIndex = 0;
+        }
     }
 }
