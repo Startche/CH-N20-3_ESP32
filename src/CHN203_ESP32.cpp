@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <CHN203_ESP32.h>
+#include <PID.h>
 
 // Number of encoder counts per turn
 #define ENC_COUNT 28
@@ -40,22 +41,22 @@ CHN203::CHN203(GenericDriver *motor, uint8_t c1, uint8_t c2, float ratio)
 
 void CHN203::drive(float speed)
 {
-    m_lock.lock();
+    lock();
 
     speed = clamp_speed(speed);
     m_currentTask = NONE;
     m_motor->drive(speed);
 
-    m_lock.unlock();
+    unlock();
 }
 void CHN203::brake()
 {
-    m_lock.lock();
+    lock();
 
     m_currentTask = NONE;
     m_motor->brake();
 
-    m_lock.unlock();
+    unlock();
 }
 
 void CHN203::rotate(float turn)
@@ -64,7 +65,7 @@ void CHN203::rotate(float turn)
     // Convert turn into encoder counts.
     long counts = turn * ENC_COUNT * m_ratio;
 
-    m_lock.lock();
+    lock();
 
     // Calculate new set encoder count and store it.
     if (m_currentTask == POSITION)
@@ -83,7 +84,7 @@ void CHN203::rotate(float turn)
 
     m_currentTask = POSITION;
 
-    m_lock.unlock();
+    unlock();
 }
 
 void CHN203::rotateRad(float angle) { rotate(angle / M_2_PI); }
@@ -92,11 +93,11 @@ void CHN203::rotateDeg(float angle) { rotate(angle / 360.0); }
 
 float CHN203::getPosition()
 {
-    m_lock.lock();
+    lock();
 
     float turn = (float)m_encoder.getCount() / (ENC_COUNT * m_ratio);
 
-    m_lock.unlock();
+    unlock();
 
     return turn;
 }
@@ -107,23 +108,33 @@ float CHN203::getPositionRad() { return M_2_PI * getPosition(); }
 
 void CHN203::setSpeed(float speed)
 {
-    m_lock.lock();
+    lock();
 
     m_currentTask = SPEED;
     m_setSpeed = speed;
 
-    m_lock.unlock();
+    unlock();
 }
 
 float CHN203::getSpeed()
 {
-    m_lock.lock();
+    lock();
 
     float speed = m_speed;
 
-    m_lock.unlock();
+    unlock();
 
     return speed;
+}
+
+void CHN203::lock()
+{
+    m_lock.lock();
+}
+
+void CHN203::unlock()
+{
+    m_lock.unlock();
 }
 
 void CHN203::motorControl(void *board)
@@ -157,7 +168,7 @@ void CHN203::motorControl(void *board)
         CHN203 *volatile p = static_cast<struct CHN203 *>(board);
 
         // Lock board.
-        (p->m_lock).lock();
+        p->lock();
 
         CHN203::ControlTaskType task = p->m_currentTask;
 
@@ -178,6 +189,6 @@ void CHN203::motorControl(void *board)
         }
 
         // Unlock board.
-        (p->m_lock).unlock();
+        p->unlock();
     }
 }

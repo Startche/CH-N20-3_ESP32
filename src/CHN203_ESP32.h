@@ -51,9 +51,11 @@ public:
     // In turns per second [Hz]:
     float getSpeed();
 
-protected:
+private:
     // Thread lock.
     std::mutex m_lock;
+    void lock();
+    void unlock();
 
     // Motor driver and encoder objects.
     GenericDriver *m_motor;
