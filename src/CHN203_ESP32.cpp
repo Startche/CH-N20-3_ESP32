@@ -224,11 +224,7 @@ void CHN203::motorControl(void *board)
     while (1)
     {
         // Wait for the next cycle.
-        auto xWasDelayed = xTaskDelayUntil(&xLastWakeTime, xFrequency);
-        if (xWasDelayed)
-        {
-            xLastWakeTime = xTaskGetTickCount();
-        }
+        xTaskDelayUntil(&xLastWakeTime, xFrequency);
 
         // Lock board.
         p->lock();
