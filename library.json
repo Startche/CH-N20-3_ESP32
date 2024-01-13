@@ -1,12 +1,13 @@
 {
-    "name": "CH-N20-3",
+    "$schema": "https://raw.githubusercontent.com/platformio/platformio-core/develop/platformio/assets/schema/library.json",
+    "name": "CHN203_ESP32",
     "version": "0.0.1",
-    "description": "Motor speed and position control using the CH-N20-3 board and an ESP32",
-    "keywords": "motor, encoder, control",
+    "description": "Controle de posição e velocidade de um motor usando a placa CH-N20-3 e um ESP32",
+    "keywords": ["motor", "encoder", "control"],
     "repository":
     {
       "type": "git",
-      "url": "https://github.com/Startche/CH-N20-3_ESP32"
+      "url": "https://github.com/Startche/CHN203_ESP32"
     },
     "authors":
     [
@@ -18,11 +19,5 @@
     "frameworks": "Arduino",
     "platforms": "espressif32",
     "headers": "CHN203_ESP32.h",
-    "examples": [
-        {
-            "name": "TB6612FNG_MotorTestRun",
-            "base": "examples/TB6612FNG_MotorTestRun",
-            "files": ["TB6612FNG_MotorTestRun.cpp"]
-        }
-    ]
+    "examples": []
 }

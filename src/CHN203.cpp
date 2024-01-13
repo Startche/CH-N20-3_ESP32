@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include <CHN203_ESP32.h>
+#include <CHN203.h>
 
 // Number of encoder counts per turn
 const int ENCODER_COUNTS = 28;
