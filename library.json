@@ -3,18 +3,31 @@
     "name": "CHN203_ESP32",
     "version": "0.0.1",
     "description": "Controle de posição e velocidade de um motor usando a placa CH-N20-3 e um ESP32",
-    "keywords": ["motor", "encoder", "control"],
-    "repository":
-    {
-      "type": "git",
-      "url": "https://github.com/Startche/CHN203_ESP32"
+    "keywords": [
+        "motor",
+        "encoder",
+        "control"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Startche/CHN203_ESP32"
     },
-    "authors":
-    [
-      {
-        "name": "Lucas Klement Reinehr",
-        "email": "lucasklementr@gmail.com"
-      }
+    "authors": [
+        {
+            "name": "Lucas Klement Reinehr",
+            "email": "lucasklementr@gmail.com"
+        }
+    ],
+    "dependencies": [
+        {
+            "owner": "madhephaestus",
+            "name": "ESP32Encoder",
+            "version": "0.10.2"
+        },
+        {
+            "name": "PID",
+            "version": "https://github.com/Startche/PID#v0.0.1"
+        }
     ],
     "frameworks": "Arduino",
     "platforms": "espressif32",
